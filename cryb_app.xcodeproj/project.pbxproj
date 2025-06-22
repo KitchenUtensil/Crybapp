@@ -6,6 +6,17 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		3DF0D0282E04C57D0071283F /* Auth in Frameworks */ = {isa = PBXBuildFile; productRef = 3DF0D0272E04C57D0071283F /* Auth */; };
+		3DF0D02A2E04C57D0071283F /* Functions in Frameworks */ = {isa = PBXBuildFile; productRef = 3DF0D0292E04C57D0071283F /* Functions */; };
+		3DF0D02C2E04C57D0071283F /* PostgREST in Frameworks */ = {isa = PBXBuildFile; productRef = 3DF0D02B2E04C57D0071283F /* PostgREST */; };
+		3DF0D02E2E04C57D0071283F /* Realtime in Frameworks */ = {isa = PBXBuildFile; productRef = 3DF0D02D2E04C57D0071283F /* Realtime */; };
+		3DF0D0302E04C57D0071283F /* Storage in Frameworks */ = {isa = PBXBuildFile; productRef = 3DF0D02F2E04C57D0071283F /* Storage */; };
+		3DF0D0322E04C57D0071283F /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = 3DF0D0312E04C57D0071283F /* Supabase */; };
+		3DF0D0352E04C62A0071283F /* ComposableArchitecture in Frameworks */ = {isa = PBXBuildFile; productRef = 3DF0D0342E04C62A0071283F /* ComposableArchitecture */; };
+		3DF0D0382E04C64A0071283F /* AsyncCompatibilityKit in Frameworks */ = {isa = PBXBuildFile; productRef = 3DF0D0372E04C64A0071283F /* AsyncCompatibilityKit */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		3DF0CFF42E04C12A0071283F /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -52,6 +63,14 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				3DF0D02C2E04C57D0071283F /* PostgREST in Frameworks */,
+				3DF0D02A2E04C57D0071283F /* Functions in Frameworks */,
+				3DF0D0352E04C62A0071283F /* ComposableArchitecture in Frameworks */,
+				3DF0D0322E04C57D0071283F /* Supabase in Frameworks */,
+				3DF0D0282E04C57D0071283F /* Auth in Frameworks */,
+				3DF0D0382E04C64A0071283F /* AsyncCompatibilityKit in Frameworks */,
+				3DF0D0302E04C57D0071283F /* Storage in Frameworks */,
+				3DF0D02E2E04C57D0071283F /* Realtime in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -112,6 +131,14 @@
 			);
 			name = cryb_app;
 			packageProductDependencies = (
+				3DF0D0272E04C57D0071283F /* Auth */,
+				3DF0D0292E04C57D0071283F /* Functions */,
+				3DF0D02B2E04C57D0071283F /* PostgREST */,
+				3DF0D02D2E04C57D0071283F /* Realtime */,
+				3DF0D02F2E04C57D0071283F /* Storage */,
+				3DF0D0312E04C57D0071283F /* Supabase */,
+				3DF0D0342E04C62A0071283F /* ComposableArchitecture */,
+				3DF0D0372E04C64A0071283F /* AsyncCompatibilityKit */,
 			);
 			productName = cryb_app;
 			productReference = 3DF0CFE62E04C1290071283F /* cryb_app.app */;
@@ -195,6 +222,11 @@
 			);
 			mainGroup = 3DF0CFDD2E04C1290071283F;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				3DF0D0262E04C57D0071283F /* XCRemoteSwiftPackageReference "supabase-swift" */,
+				3DF0D0332E04C62A0071283F /* XCRemoteSwiftPackageReference "swift-composable-architecture" */,
+				3DF0D0362E04C64A0071283F /* XCRemoteSwiftPackageReference "AsyncCompatibilityKit" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 3DF0CFE72E04C1290071283F /* Products */;
 			projectDirPath = "";
@@ -558,6 +590,76 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		3DF0D0262E04C57D0071283F /* XCRemoteSwiftPackageReference "supabase-swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/supabase-community/supabase-swift.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.5.1;
+			};
+		};
+		3DF0D0332E04C62A0071283F /* XCRemoteSwiftPackageReference "swift-composable-architecture" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/pointfreeco/swift-composable-architecture.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.20.2;
+			};
+		};
+		3DF0D0362E04C64A0071283F /* XCRemoteSwiftPackageReference "AsyncCompatibilityKit" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/JohnSundell/AsyncCompatibilityKit.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.1.2;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		3DF0D0272E04C57D0071283F /* Auth */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 3DF0D0262E04C57D0071283F /* XCRemoteSwiftPackageReference "supabase-swift" */;
+			productName = Auth;
+		};
+		3DF0D0292E04C57D0071283F /* Functions */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 3DF0D0262E04C57D0071283F /* XCRemoteSwiftPackageReference "supabase-swift" */;
+			productName = Functions;
+		};
+		3DF0D02B2E04C57D0071283F /* PostgREST */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 3DF0D0262E04C57D0071283F /* XCRemoteSwiftPackageReference "supabase-swift" */;
+			productName = PostgREST;
+		};
+		3DF0D02D2E04C57D0071283F /* Realtime */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 3DF0D0262E04C57D0071283F /* XCRemoteSwiftPackageReference "supabase-swift" */;
+			productName = Realtime;
+		};
+		3DF0D02F2E04C57D0071283F /* Storage */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 3DF0D0262E04C57D0071283F /* XCRemoteSwiftPackageReference "supabase-swift" */;
+			productName = Storage;
+		};
+		3DF0D0312E04C57D0071283F /* Supabase */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 3DF0D0262E04C57D0071283F /* XCRemoteSwiftPackageReference "supabase-swift" */;
+			productName = Supabase;
+		};
+		3DF0D0342E04C62A0071283F /* ComposableArchitecture */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 3DF0D0332E04C62A0071283F /* XCRemoteSwiftPackageReference "swift-composable-architecture" */;
+			productName = ComposableArchitecture;
+		};
+		3DF0D0372E04C64A0071283F /* AsyncCompatibilityKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 3DF0D0362E04C64A0071283F /* XCRemoteSwiftPackageReference "AsyncCompatibilityKit" */;
+			productName = AsyncCompatibilityKit;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 3DF0CFDE2E04C1290071283F /* Project object */;
 }
