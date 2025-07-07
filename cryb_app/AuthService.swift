@@ -26,12 +26,17 @@ class AuthService: ObservableObject {
             return
         }
         
-        await fetchUserProfile(userId: session.user.id.uuidString)
-        self.isAuthenticated = true
+        let profileFound = await fetchUserProfile(userId: session.user.id.uuidString)
+        if profileFound {
+            self.isAuthenticated = true
+        } else {
+            self.isAuthenticated = false
+            self.errorMessage = "User profile not found. Please sign out and sign in again."
+        }
         self.isLoading = false
     }
     
-    func signUp(email: String, password: String, name: String) async {
+    func signUp(email: String, password: String, displayName: String) async {
         isLoading = true
         errorMessage = nil
         
@@ -39,10 +44,19 @@ class AuthService: ObservableObject {
             let authResponse = try await supabase.auth.signUp(
                 email: email,
                 password: password,
-                data: ["name": .string(name)]
+                data: ["display_name": .string(displayName)]
             )
             
-            await fetchUserProfile(userId: authResponse.user.id.uuidString)
+            // Try to fetch the user profile
+            let profileFound = await fetchUserProfile(userId: authResponse.user.id.uuidString)
+            
+            // If profile not found, create it manually
+            if !profileFound {
+                print("[AuthService] Profile not found after sign-up, creating manually...")
+                await createUserProfile(userId: authResponse.user.id.uuidString, email: email, displayName: displayName)
+                // Try fetching again
+                _ = await fetchUserProfile(userId: authResponse.user.id.uuidString)
+            }
         } catch {
             print(">>> SUPABASE SIGN-UP ERROR: \(error)")
             
@@ -54,7 +68,13 @@ class AuthService: ObservableObject {
                 // Try to sign in with the same credentials
                 do {
                     let signInResponse = try await supabase.auth.signIn(email: email, password: password)
-                    await fetchUserProfile(userId: signInResponse.user.id.uuidString)
+                    let profileFound = await fetchUserProfile(userId: signInResponse.user.id.uuidString)
+                    
+                    if !profileFound {
+                        await createUserProfile(userId: signInResponse.user.id.uuidString, email: email, displayName: displayName)
+                        _ = await fetchUserProfile(userId: signInResponse.user.id.uuidString)
+                    }
+                    
                     errorMessage = nil // Clear the error message since sign-in succeeded
                 } catch {
                     print("[AuthService] >>> SIGN-IN ATTEMPT FAILED: \(error)")
@@ -77,7 +97,13 @@ class AuthService: ObservableObject {
             let authResponse = try await supabase.auth.signIn(email: email, password: password)
             print("[AuthService] 2. Sign-in to Supabase successful for user ID: \(authResponse.user.id)")
             
-            await fetchUserProfile(userId: authResponse.user.id.uuidString)
+            let profileFound = await fetchUserProfile(userId: authResponse.user.id.uuidString)
+            
+            if !profileFound {
+                print("[AuthService] Profile not found after sign-in, creating manually...")
+                await createUserProfile(userId: authResponse.user.id.uuidString, email: email, displayName: nil)
+                _ = await fetchUserProfile(userId: authResponse.user.id.uuidString)
+            }
         } catch {
             print("[AuthService] >>> SUPABASE SIGN-IN ERROR: \(error)")
             errorMessage = error.localizedDescription
@@ -96,7 +122,7 @@ class AuthService: ObservableObject {
         }
     }
     
-    private func fetchUserProfile(userId: String) async {
+    private func fetchUserProfile(userId: String) async -> Bool {
         do {
             print("[AuthService] 3. Fetching profile from 'users' table for ID: \(userId)")
             let response: [CrybUser] = try await supabase
@@ -112,15 +138,41 @@ class AuthService: ObservableObject {
                 currentUser = user
                 isAuthenticated = true
                 print("[AuthService] 5. Profile found: \(user.displayName ?? "No Name"). Setting isAuthenticated = true.")
+                return true
             } else {
                 isAuthenticated = false
-                errorMessage = "Could not find a profile for the logged-in user."
-                print("[AuthService] 5. No profile found in 'users' table. Setting isAuthenticated = false.")
+                print("[AuthService] 5. No profile found in 'users' table.")
+                return false
             }
         } catch {
             print("[AuthService] >>> ERROR FETCHING USER PROFILE: \(error)")
             errorMessage = error.localizedDescription
             isAuthenticated = false
+            return false
+        }
+    }
+    
+    private func createUserProfile(userId: String, email: String, displayName: String?) async {
+        do {
+            print("[AuthService] Creating user profile for ID: \(userId)")
+            let newUser = CreateUserRequest(
+                id: userId,
+                email: email,
+                displayName: displayName ?? "User"
+            )
+            
+            let response: [CrybUser] = try await supabase
+                .from("users")
+                .insert(newUser)
+                .execute()
+                .value
+            
+            if let createdUser = response.first {
+                print("[AuthService] Successfully created user profile: \(createdUser.displayName ?? "No Name")")
+            }
+        } catch {
+            print("[AuthService] >>> ERROR CREATING USER PROFILE: \(error)")
+            errorMessage = "Failed to create user profile: \(error.localizedDescription)"
         }
     }
     
@@ -143,6 +195,23 @@ class AuthService: ObservableObject {
             errorMessage = error.localizedDescription
         }
     }
+    
+    func changePassword(currentPassword: String, newPassword: String) async -> String? {
+        // Supabase requires re-authentication before changing password
+        guard let email = currentUser?.email else {
+            return "No user email found."
+        }
+        do {
+            // Re-authenticate
+            _ = try await supabase.auth.signIn(email: email, password: currentPassword)
+            // Change password
+            try await supabase.auth.update(user: UserAttributes(password: newPassword))
+            return nil // Success
+        } catch {
+            print(">>> CHANGE PASSWORD ERROR: \(error)")
+            return error.localizedDescription
+        }
+    }
 }
 
 // MARK: - Profile Requests
@@ -150,6 +219,18 @@ private struct UpdateUserRequest: Encodable {
     let displayName: String
     
     enum CodingKeys: String, CodingKey {
+        case displayName = "display_name"
+    }
+}
+
+private struct CreateUserRequest: Encodable {
+    let id: String
+    let email: String
+    let displayName: String
+    
+    enum CodingKeys: String, CodingKey {
+        case id
+        case email
         case displayName = "display_name"
     }
 } 

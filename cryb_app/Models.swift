@@ -32,7 +32,7 @@ struct CrybUser: Codable, Identifiable {
 }
 
 // MARK: - House Model
-struct House: Codable, Identifiable {
+struct House: Identifiable, Codable, Equatable {
     let id: UUID
     let name: String
     let code: String

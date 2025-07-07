@@ -1,204 +1,143 @@
 import SwiftUI
 
 struct LoginView: View {
-    @EnvironmentObject private var authService: AuthService
-    @State private var email = ""
-    @State private var password = ""
-    @State private var name = ""
-    @State private var isSignUp = false
-    
-    var body: some View {
-        NavigationView {
-            VStack(spacing: 30) {
-                // Header
-                VStack(spacing: 10) {
-                    Image(systemName: "house.fill")
-                        .font(.system(size: 60))
-                        .foregroundColor(.blue)
-                    
-                    Text("Cryb")
-                        .font(.largeTitle)
-                        .fontWeight(.bold)
-                    
-                    Text("Manage your household together")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                }
-                
-                // Form
-                VStack(spacing: 20) {
-                    if isSignUp {
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("Full Name")
-                                .font(.headline)
-                            TextField("Enter your full name", text: $name)
-                                .textFieldStyle(RoundedBorderTextFieldStyle())
-                        }
-                    }
-                    
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Email")
-                            .font(.headline)
-                        TextField("Enter your email", text: $email)
-                            .textFieldStyle(RoundedBorderTextFieldStyle())
-                            .keyboardType(.emailAddress)
-                            .autocapitalization(.none)
-                    }
-                    
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Password")
-                            .font(.headline)
-                        SecureField("Enter your password", text: $password)
-                            .textFieldStyle(RoundedBorderTextFieldStyle())
-                    }
-                    
-                    if let errorMessage = authService.errorMessage {
-                        Text(errorMessage)
-                            .foregroundColor(.red)
-                            .font(.caption)
-                    }
-                    
-                    Button(action: {
-                        Task {
-                            if isSignUp {
-                                await authService.signUp(email: email, password: password, name: name)
-                            } else {
-                                await authService.signIn(email: email, password: password)
-                            }
-                        }
-                    }) {
-                        HStack {
-                            if authService.isLoading {
-                                ProgressView()
-                                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                                    .scaleEffect(0.8)
-                            }
-                            Text(isSignUp ? "Sign Up" : "Sign In")
-                                .fontWeight(.semibold)
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(Color.blue)
-                        .foregroundColor(.white)
-                        .cornerRadius(10)
-                    }
-                    .disabled(authService.isLoading || email.isEmpty || password.isEmpty || (isSignUp && name.isEmpty))
-                    
-                    Button(action: {
-                        isSignUp.toggle()
-                        // Clear form when switching modes
-                        if !isSignUp {
-                            name = ""
-                        }
-                    }) {
-                        Text(isSignUp ? "Already have an account? Sign In" : "Don't have an account? Sign Up")
-                            .foregroundColor(.blue)
-                    }
-                }
-                .padding(.horizontal, 30)
-                
-                Spacer()
-            }
-            .padding()
-        }
-    }
-}
-
-struct SignUpView: View {
-    @EnvironmentObject private var authService: AuthService
+    @EnvironmentObject var authService: AuthService
     @State private var email = ""
     @State private var password = ""
     @State private var confirmPassword = ""
-    @State private var name = ""
-    @Environment(\.dismiss) private var dismiss
-    
+    @State private var displayName = ""
+    @State private var showSignUp = false
+    @State private var formErrorMessage: String?
+
     var body: some View {
-        NavigationView {
+        NavigationStack {
             VStack(spacing: 30) {
-                // Header
+                // Header - Stays the same
                 VStack(spacing: 10) {
-                    Image(systemName: "person.badge.plus")
-                        .font(.system(size: 50))
+                    Image(systemName: "house.circle.fill")
+                        .font(.system(size: 60))
                         .foregroundColor(.blue)
-                    
-                    Text("Create Account")
+                    Text("Welcome to cryb")
                         .font(.largeTitle)
                         .fontWeight(.bold)
+                    Text(showSignUp ? "Create an account to get started" : "Sign in to manage your household")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                        .multilineTextAlignment(.center)
                 }
-                
-                // Form
+                .padding(.horizontal)
+
+                // Animated Form Section
                 VStack(spacing: 20) {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Full Name")
-                            .font(.headline)
-                        TextField("Enter your full name", text: $name)
-                            .textFieldStyle(RoundedBorderTextFieldStyle())
-                    }
-                    
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Email")
-                            .font(.headline)
-                        TextField("Enter your email", text: $email)
-                            .textFieldStyle(RoundedBorderTextFieldStyle())
-                            .keyboardType(.emailAddress)
-                            .autocapitalization(.none)
-                    }
-                    
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Password")
-                            .font(.headline)
-                        SecureField("Enter your password", text: $password)
-                            .textFieldStyle(RoundedBorderTextFieldStyle())
-                    }
-                    
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Confirm Password")
-                            .font(.headline)
-                        SecureField("Confirm your password", text: $confirmPassword)
-                            .textFieldStyle(RoundedBorderTextFieldStyle())
-                    }
-                    
-                    if let errorMessage = authService.errorMessage {
-                        Text(errorMessage)
-                            .foregroundColor(.red)
-                            .font(.caption)
-                    }
-                    
-                    Button(action: {
-                        Task {
-                            await authService.signUp(email: email, password: password, name: name)
+                    if showSignUp {
+                        VStack(spacing: 20) {
+                            TextField("Display Name", text: $displayName)
+                            TextField("Email", text: $email)
+                                .autocapitalization(.none)
+                                .keyboardType(.emailAddress)
+                            SecureField("Password", text: $password)
+                            SecureField("Confirm Password", text: $confirmPassword)
                         }
-                    }) {
-                        HStack {
-                            if authService.isLoading {
-                                ProgressView()
-                                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                                    .scaleEffect(0.8)
-                            }
-                            Text("Create Account")
-                                .fontWeight(.semibold)
+                        .transition(.asymmetric(
+                            insertion: .move(edge: .trailing).combined(with: .opacity),
+                            removal: .move(edge: .leading).combined(with: .opacity)
+                        ))
+                    } else {
+                        VStack(spacing: 20) {
+                            TextField("Email", text: $email)
+                                .autocapitalization(.none)
+                                .keyboardType(.emailAddress)
+                            SecureField("Password", text: $password)
                         }
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(Color.blue)
-                        .foregroundColor(.white)
-                        .cornerRadius(10)
+                        .transition(.asymmetric(
+                            insertion: .move(edge: .leading).combined(with: .opacity),
+                            removal: .move(edge: .trailing).combined(with: .opacity)
+                        ))
                     }
-                    .disabled(authService.isLoading || email.isEmpty || password.isEmpty || confirmPassword.isEmpty || name.isEmpty || password != confirmPassword)
                 }
-                .padding(.horizontal, 30)
-                
+                .textFieldStyle(RoundedBorderTextFieldStyle())
+
+                // Error Message
+                if let error = formErrorMessage ?? authService.errorMessage {
+                    Text(error)
+                        .foregroundColor(.red)
+                        .font(.caption)
+                        .multilineTextAlignment(.center)
+                }
+
+                // Action Button
+                VStack {
+                    if showSignUp {
+                        Button(action: signUp) {
+                            HStack {
+                                if authService.isLoading { ProgressView().progressViewStyle(.circular) }
+                                Text("Sign Up")
+                            }
+                        }
+                        .disabled(authService.isLoading || email.isEmpty || password.isEmpty || displayName.isEmpty || confirmPassword.isEmpty)
+                    } else {
+                        Button(action: signIn) {
+                             HStack {
+                                if authService.isLoading { ProgressView().progressViewStyle(.circular) }
+                                Text("Sign In")
+                            }
+                        }
+                        .disabled(authService.isLoading || email.isEmpty || password.isEmpty)
+                    }
+                }
+                .frame(maxWidth: .infinity)
+                .padding()
+                .background(Color.blue)
+                .foregroundColor(.white)
+                .cornerRadius(10)
+                .font(.headline.weight(.semibold))
+
+                // Toggle Button
+                Button(action: toggleForm) {
+                    Text(showSignUp ? "Already have an account? Sign In" : "Don't have an account? Sign Up")
+                }
+                .padding(.top)
+
                 Spacer()
             }
             .padding()
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancel") {
-                        dismiss()
-                    }
-                }
-            }
+            .navigationBarHidden(true)
+        }
+    }
+    
+    private func toggleForm() {
+        withAnimation(.easeInOut(duration: 0.3)) {
+            showSignUp.toggle()
+        }
+        // Clear fields and errors when toggling
+        email = ""
+        password = ""
+        confirmPassword = ""
+        displayName = ""
+        formErrorMessage = nil
+        authService.errorMessage = nil
+    }
+
+    private func signIn() {
+        formErrorMessage = nil
+        Task {
+            await authService.signIn(email: email, password: password)
+        }
+    }
+
+    private func signUp() {
+        if password != confirmPassword {
+            formErrorMessage = "Passwords do not match."
+            return
+        }
+        
+        formErrorMessage = nil
+        Task {
+            await authService.signUp(
+                email: email,
+                password: password,
+                displayName: displayName
+            )
         }
     }
 }

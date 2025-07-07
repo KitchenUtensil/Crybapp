@@ -11,86 +11,91 @@ struct DashboardView: View {
     @State private var showingCreateHouse = false
     @State private var showingJoinHouse = false
     @State private var showingLeaveHouseConfirmation = false
+    @State private var showingProfile = false
+    @State private var showingHouseOnboarding = false
+    
+    var body: some View {
+        DashboardMainView(
+            showingHouseSelector: $showingHouseSelector,
+            showingCreateHouse: $showingCreateHouse,
+            showingJoinHouse: $showingJoinHouse,
+            showingLeaveHouseConfirmation: $showingLeaveHouseConfirmation,
+            showingProfile: $showingProfile,
+            showingHouseOnboarding: $showingHouseOnboarding
+        )
+        .environmentObject(authService)
+        .environmentObject(houseService)
+        .environmentObject(choreService)
+        .environmentObject(expenseService)
+        .environmentObject(noteService)
+    }
+}
+
+struct DashboardMainView: View {
+    @EnvironmentObject private var authService: AuthService
+    @EnvironmentObject private var houseService: HouseService
+    @EnvironmentObject private var choreService: ChoreService
+    @EnvironmentObject private var expenseService: ExpenseService
+    @EnvironmentObject private var noteService: NoteService
+    
+    @Binding var showingHouseSelector: Bool
+    @Binding var showingCreateHouse: Bool
+    @Binding var showingJoinHouse: Bool
+    @Binding var showingLeaveHouseConfirmation: Bool
+    @Binding var showingProfile: Bool
+    @Binding var showingHouseOnboarding: Bool
     
     var body: some View {
         NavigationView {
             ScrollView {
-                VStack(spacing: 20) {
-                    // House Header
-                    houseHeader
-                    
-                    // Balance Summary
-                    if let balance = expenseService.balanceSummary {
-                        balanceSummaryCard(balance)
-                    }
-                    
-                    // Upcoming Chores
-                    upcomingChoresSection
-                    
-                    // Recent Expenses
-                    recentExpensesSection
-                    
-                    // Pinned Notes
-                    pinnedNotesSection
-                }
+                DashboardSectionsView(
+                    houseService: houseService,
+                    choreService: choreService,
+                    expenseService: expenseService,
+                    noteService: noteService,
+                    showingLeaveHouseConfirmation: $showingLeaveHouseConfirmation,
+                    showingHouseSelector: $showingHouseSelector
+                )
                 .padding()
             }
             .navigationTitle("Dashboard")
-            .navigationBarTitleDisplayMode(.large)
             .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Menu {
-                        if houseService.currentHouse == nil {
-                            Button("Create House") {
-                                showingCreateHouse = true
-                            }
-                            Button("Join House") {
-                                showingJoinHouse = true
-                            }
-                        } else {
-                            Button("Switch House") {
-                                showingHouseSelector = true
-                            }
-                            Button("Leave House") {
-                                showingLeaveHouseConfirmation = true
-                            }
-                            .disabled(houseService.isLoading)
-                        }
-                        Divider()
-                        Button("Sign Out", role: .destructive) {
-                            Task {
-                                await authService.signOut()
-                            }
-                        }
-                    } label: {
-                        Image(systemName: "ellipsis.circle")
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button(action: { showingProfile = true }) {
+                        Image(systemName: "person.crop.circle")
                     }
                 }
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button(action: {
+                        Task {
+                            await authService.signOut()
+                        }
+                    }) {
+                        Image(systemName: "arrow.backward.square")
+                    }
+                    .accessibilityLabel("Sign Out")
+                }
+            }
+            .sheet(isPresented: $showingProfile) {
+                ProfileView()
+                    .environmentObject(authService)
+            }
+            .sheet(isPresented: $showingHouseSelector) {
+                HouseSelectorView()
+                    .environmentObject(houseService)
             }
             .sheet(isPresented: $showingCreateHouse) {
                 CreateHouseView()
                     .environmentObject(houseService)
-                    .environmentObject(authService)
-                    .environmentObject(choreService)
-                    .environmentObject(expenseService)
-                    .environmentObject(noteService)
             }
-            .sheet(isPresented: $showingJoinHouse, onDismiss: {
-                if houseService.currentHouse != nil {
-                    Task {
-                        await loadDashboardData()
-                    }
-                }
-            }) {
+            .sheet(isPresented: $showingJoinHouse) {
                 JoinHouseView()
                     .environmentObject(houseService)
-                    .environmentObject(authService)
-                    .environmentObject(choreService)
-                    .environmentObject(expenseService)
-                    .environmentObject(noteService)
             }
-            .sheet(isPresented: $showingHouseSelector) {
-                HouseSelectorView()
+            .fullScreenCover(isPresented: $showingHouseOnboarding, onDismiss: {
+                // No-op: user should not be able to dismiss unless in a house
+            }) {
+                HouseOnboardingView()
                     .environmentObject(houseService)
                     .environmentObject(authService)
                     .environmentObject(choreService)
@@ -98,7 +103,7 @@ struct DashboardView: View {
                     .environmentObject(noteService)
             }
             .confirmationDialog(
-                "Leave House",
+                "Are you sure you want to leave the house?",
                 isPresented: $showingLeaveHouseConfirmation,
                 titleVisibility: .visible
             ) {
@@ -107,9 +112,7 @@ struct DashboardView: View {
                         await houseService.leaveHouse()
                     }
                 }
-                Button("Cancel", role: .cancel) { }
-            } message: {
-                Text("Are you sure you want to leave this house? You'll need to be invited back to rejoin.")
+                Button("Cancel", role: .cancel) {}
             }
             .onAppear {
                 Task {
@@ -117,15 +120,55 @@ struct DashboardView: View {
                         await houseService.fetchUserHouses()
                     }
                     await loadDashboardData()
+                    await MainActor.run {
+                        showingHouseOnboarding = houseService.currentHouse == nil
+                    }
                 }
             }
-            .refreshable {
-                await loadDashboardData()
+            .onChange(of: houseService.currentHouse) { oldValue, newValue in
+                if newValue != nil {
+                    showingHouseOnboarding = false
+                }
             }
         }
     }
     
-    private var houseHeader: some View {
+    private func loadDashboardData() async {
+        guard let houseId = houseService.currentHouse?.id.uuidString else { return }
+        await choreService.fetchChores(houseId: houseId)
+        await expenseService.fetchExpenses(houseId: houseId)
+        await noteService.fetchNotes(houseId: houseId)
+    }
+}
+
+struct DashboardSectionsView: View {
+    @ObservedObject var houseService: HouseService
+    @ObservedObject var choreService: ChoreService
+    @ObservedObject var expenseService: ExpenseService
+    @ObservedObject var noteService: NoteService
+    @Binding var showingLeaveHouseConfirmation: Bool
+    @Binding var showingHouseSelector: Bool
+    
+    var body: some View {
+        VStack(spacing: 20) {
+            HouseHeaderView(
+                houseService: houseService,
+                showingLeaveHouseConfirmation: $showingLeaveHouseConfirmation,
+                showingHouseSelector: $showingHouseSelector
+            )
+            BalanceSummarySectionView(expenseService: expenseService)
+            UpcomingChoresSectionView(choreService: choreService)
+            RecentExpensesSectionView(expenseService: expenseService)
+            PinnedNotesSectionView(noteService: noteService)
+        }
+    }
+}
+
+struct HouseHeaderView: View {
+    @ObservedObject var houseService: HouseService
+    @Binding var showingLeaveHouseConfirmation: Bool
+    @Binding var showingHouseSelector: Bool
+    var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             if let currentHouse = houseService.currentHouse {
                 HStack {
@@ -143,7 +186,6 @@ struct DashboardView: View {
                             UIPasteboard.general.string = currentHouse.code
                         }
                         .buttonStyle(.bordered)
-                        
                         Button("Leave House") {
                             showingLeaveHouseConfirmation = true
                         }
@@ -167,56 +209,59 @@ struct DashboardView: View {
         .background(Color(.systemGray6))
         .cornerRadius(12)
     }
-    
-    private func balanceSummaryCard(_ balance: BalanceSummary) -> some View {
-        VStack(spacing: 12) {
-            Text("Balance Summary")
-                .font(.headline)
-                .frame(maxWidth: .infinity, alignment: .leading)
-            
-            HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("You Owe")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                    Text("$\(balance.youOwe, specifier: "%.2f")")
-                        .font(.title2)
-                        .fontWeight(.bold)
-                        .foregroundColor(.red)
-                }
-                
-                Spacer()
-                
-                VStack(alignment: .center, spacing: 4) {
-                    Text("Net Balance")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                    Text("$\(balance.netBalance, specifier: "%.2f")")
-                        .font(.title2)
-                        .fontWeight(.bold)
-                        .foregroundColor(balance.netBalance >= 0 ? .green : .red)
-                }
-                
-                Spacer()
-                
-                VStack(alignment: .trailing, spacing: 4) {
-                    Text("You're Owed")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                    Text("$\(balance.youAreOwed, specifier: "%.2f")")
-                        .font(.title2)
-                        .fontWeight(.bold)
-                        .foregroundColor(.green)
+}
+
+struct BalanceSummarySectionView: View {
+    @ObservedObject var expenseService: ExpenseService
+    var body: some View {
+        if let balance = expenseService.balanceSummary {
+            VStack(spacing: 12) {
+                Text("Balance Summary")
+                    .font(.headline)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                HStack {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("You Owe")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        Text("$\(balance.youOwe, specifier: "%.2f")")
+                            .font(.title2)
+                            .fontWeight(.bold)
+                            .foregroundColor(.red)
+                    }
+                    Spacer()
+                    VStack(alignment: .center, spacing: 4) {
+                        Text("Net Balance")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        Text("$\(balance.netBalance, specifier: "%.2f")")
+                            .font(.title2)
+                            .fontWeight(.bold)
+                            .foregroundColor(balance.netBalance >= 0 ? .green : .red)
+                    }
+                    Spacer()
+                    VStack(alignment: .trailing, spacing: 4) {
+                        Text("You're Owed")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        Text("$\(balance.youAreOwed, specifier: "%.2f")")
+                            .font(.title2)
+                            .fontWeight(.bold)
+                            .foregroundColor(.green)
+                    }
                 }
             }
+            .padding()
+            .background(Color(.systemBackground))
+            .cornerRadius(12)
+            .shadow(radius: 2)
         }
-        .padding()
-        .background(Color(.systemBackground))
-        .cornerRadius(12)
-        .shadow(radius: 2)
     }
-    
-    private var upcomingChoresSection: some View {
+}
+
+struct UpcomingChoresSectionView: View {
+    @ObservedObject var choreService: ChoreService
+    var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Text("Upcoming Chores")
@@ -227,7 +272,6 @@ struct DashboardView: View {
                 }
                 .font(.caption)
             }
-            
             if choreService.upcomingChores.isEmpty {
                 Text("No upcoming chores")
                     .foregroundColor(.secondary)
@@ -244,8 +288,11 @@ struct DashboardView: View {
         .cornerRadius(12)
         .shadow(radius: 2)
     }
-    
-    private var recentExpensesSection: some View {
+}
+
+struct RecentExpensesSectionView: View {
+    @ObservedObject var expenseService: ExpenseService
+    var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Text("Recent Expenses")
@@ -256,7 +303,6 @@ struct DashboardView: View {
                 }
                 .font(.caption)
             }
-            
             if expenseService.recentExpenses.isEmpty {
                 Text("No recent expenses")
                     .foregroundColor(.secondary)
@@ -273,8 +319,11 @@ struct DashboardView: View {
         .cornerRadius(12)
         .shadow(radius: 2)
     }
-    
-    private var pinnedNotesSection: some View {
+}
+
+struct PinnedNotesSectionView: View {
+    @ObservedObject var noteService: NoteService
+    var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Text("Pinned Notes")
@@ -285,7 +334,6 @@ struct DashboardView: View {
                 }
                 .font(.caption)
             }
-            
             if noteService.pinnedNotes.isEmpty {
                 Text("No pinned notes")
                     .foregroundColor(.secondary)
@@ -301,14 +349,6 @@ struct DashboardView: View {
         .background(Color(.systemBackground))
         .cornerRadius(12)
         .shadow(radius: 2)
-    }
-    
-    private func loadDashboardData() async {
-        guard let currentHouse = houseService.currentHouse else { return }
-        
-        await choreService.fetchChores(houseId: currentHouse.id.uuidString)
-        await expenseService.fetchExpenses(houseId: currentHouse.id.uuidString)
-        await noteService.fetchNotes(houseId: currentHouse.id.uuidString)
     }
 }
 

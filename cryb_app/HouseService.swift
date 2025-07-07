@@ -199,28 +199,23 @@ class HouseService: ObservableObject {
     func leaveHouse() async {
         isLoading = true
         errorMessage = nil
-        
         do {
             let userId = try await supabase.auth.session.user.id
-            
-            // Set the user's house_id to null
+            print("[leaveHouse] Attempting to set house_id to nil for user: \(userId)")
             let request = UpdateUserHouseRequest(houseId: nil)
-            try await supabase
+            let response = try await supabase
                 .from("users")
                 .update(request)
                 .eq("id", value: userId)
                 .execute()
-            
-            // Update local state
+            print("[leaveHouse] Update response: \(response)")
             self.currentHouse = nil
             self.userHouses = []
             self.houseMembers = []
-            
         } catch {
             print(">>> HOUSE SERVICE ERROR: leaving house: \(error)")
-            errorMessage = "Failed to leave house."
+            errorMessage = "Failed to leave house: \(error.localizedDescription)"
         }
-        
         isLoading = false
     }
     
@@ -231,10 +226,10 @@ class HouseService: ObservableObject {
 }
 
 private struct UpdateUserHouseRequest: Encodable {
-    let houseId: UUID?
+    let house_id: UUID??
 
-    enum CodingKeys: String, CodingKey {
-        case houseId = "house_id"
+    init(houseId: UUID?) {
+        self.house_id = houseId
     }
 } 
  
