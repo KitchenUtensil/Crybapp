@@ -261,7 +261,22 @@ struct BalanceSummarySectionView: View {
 
 struct UpcomingChoresSectionView: View {
     @ObservedObject var choreService: ChoreService
+    
+    // Use a static DateFormatter to avoid recreating it every time
+    static let dateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter
+    }()
+    
     var body: some View {
+        let upcomingChores = choreService.chores.filter { chore in
+            guard !chore.completed else { return false }
+            guard let dueDateString = chore.dueDate, let dueDate = UpcomingChoresSectionView.dateFormatter.date(from: dueDateString) else {
+                return true // If no due date, consider it upcoming
+            }
+            return dueDate > Date()
+        }
         VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Text("Upcoming Chores")
@@ -272,13 +287,13 @@ struct UpcomingChoresSectionView: View {
                 }
                 .font(.caption)
             }
-            if choreService.upcomingChores.isEmpty {
+            if upcomingChores.isEmpty {
                 Text("No upcoming chores")
                     .foregroundColor(.secondary)
                     .frame(maxWidth: .infinity, alignment: .center)
                     .padding()
             } else {
-                ForEach(Array(choreService.upcomingChores.prefix(3))) { chore in
+                ForEach(Array(upcomingChores.prefix(3))) { chore in
                     ChoreRowView(chore: chore, choreService: choreService)
                 }
             }
@@ -349,50 +364,6 @@ struct PinnedNotesSectionView: View {
         .background(Color(.systemBackground))
         .cornerRadius(12)
         .shadow(radius: 2)
-    }
-}
-
-struct ChoreRowView: View {
-    let chore: Chore
-    @ObservedObject var choreService: ChoreService
-    
-    var body: some View {
-        HStack {
-            Button(action: {
-                Task {
-                    // await choreService.updateChore(chore, isCompleted: !chore.isCompleted)
-                }
-            }) {
-                Image(systemName: chore.isCompleted ? "checkmark.circle.fill" : "circle")
-                    .foregroundColor(chore.isCompleted ? .green : .gray)
-            }
-            
-            VStack(alignment: .leading, spacing: 4) {
-                Text(chore.title)
-                    .font(.subheadline)
-                    .fontWeight(.medium)
-                    .strikethrough(chore.isCompleted)
-                
-                if let dueDate = chore.dueDate {
-                    Text(dueDate, style: .date)
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-            }
-            
-            Spacer()
-            
-            if let points = chore.points, points > 0 {
-                Text("\(points) pts")
-                    .font(.caption)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(Color.blue.opacity(0.1))
-                    .foregroundColor(.blue)
-                    .cornerRadius(8)
-            }
-        }
-        .padding(.vertical, 4)
     }
 }
 

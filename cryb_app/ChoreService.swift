@@ -7,156 +7,108 @@ class ChoreService: ObservableObject {
     private let supabase = SupabaseConfig.shared
     
     @Published var chores: [Chore] = []
-    @Published var upcomingChores: [Chore] = []
     @Published var isLoading = false
     @Published var errorMessage: String?
     
     func fetchChores(houseId: String) async {
         isLoading = true
-        
+        print("[ChoreService] fetchChores for houseId: \(houseId)")
         do {
-            let response: [Chore] = try await supabase
+            let chores: [Chore] = try await supabase
                 .from("chores")
                 .select()
                 .eq("house_id", value: houseId)
                 .order("due_date", ascending: true)
                 .execute()
                 .value
-            
-            chores = response
-            upcomingChores = response.filter { !$0.isCompleted && ($0.dueDate == nil || $0.dueDate! > Date()) }
+            print("[ChoreService] fetched chores: \(chores)")
+            self.chores = chores
         } catch {
             errorMessage = error.localizedDescription
+            print("[ChoreService] fetch error: \(error)")
         }
-        
         isLoading = false
     }
     
-    func createChore(title: String, description: String?, dueDate: Date?, assignedUserId: String?, recurrence: RecurrenceType, points: Int?, houseId: String) async {
+    func createChore(title: String, assignedTo: String?, dueDate: String?, houseId: String, completed: Bool = false) async {
         isLoading = true
         errorMessage = nil
-        
         do {
-            let userId = try await supabase.auth.session.user.id.uuidString
-            
-            let request = CreateChoreRequest(
+            let newChore = CreateChoreRequest(
                 title: title,
-                description: description ?? "",
-                dueDate: dueDate?.ISO8601String() ?? "",
-                assignedUserId: assignedUserId ?? "",
+                dueDate: dueDate,
+                assignedTo: assignedTo,
                 houseId: houseId,
-                createdBy: userId,
-                recurrence: recurrence,
-                points: points ?? 0,
-                isCompleted: false
+                completed: completed
             )
-            
             let response: [Chore] = try await supabase
                 .from("chores")
-                .insert(request)
+                .insert([newChore])
+                .select()
                 .execute()
                 .value
-            
-            if let chore = response.first {
-                chores.append(chore)
-                if !chore.isCompleted && (chore.dueDate == nil || chore.dueDate! > Date()) {
-                    upcomingChores.append(chore)
-                }
+            if let created = response.first {
+                chores.append(created)
             }
+            // Always refetch after create
+            await fetchChores(houseId: houseId)
         } catch {
             errorMessage = error.localizedDescription
+            print("[ChoreService] Failed to create chore: \(error)")
         }
-        
         isLoading = false
     }
     
-    func updateChore(_ chore: Chore, isCompleted: Bool) async {
+    func updateChore(_ chore: Chore) async {
         isLoading = true
         errorMessage = nil
-        
         do {
-            let request = UpdateChoreCompletionRequest(isCompleted: isCompleted)
-            
+            let updateData = UpdateChoreRequest(
+                title: chore.title,
+                dueDate: chore.dueDate,
+                assignedTo: chore.assignedTo,
+                completed: chore.completed
+            )
             let response: [Chore] = try await supabase
                 .from("chores")
-                .update(request)
+                .update(updateData)
                 .eq("id", value: chore.id)
+                .select()
                 .execute()
                 .value
-            
-            if let updatedChore = response.first {
-                if let index = chores.firstIndex(where: { $0.id == chore.id }) {
-                    chores[index] = updatedChore
-                }
-                
-                // Update upcoming chores
-                upcomingChores.removeAll { $0.id == chore.id }
-                if !updatedChore.isCompleted && (updatedChore.dueDate == nil || updatedChore.dueDate! > Date()) {
-                    upcomingChores.append(updatedChore)
-                }
+            if let updated = response.first, let idx = chores.firstIndex(where: { $0.id == updated.id }) {
+                chores[idx] = updated
             }
+            // Always refetch after update
+            await fetchChores(houseId: chore.houseId)
         } catch {
             errorMessage = error.localizedDescription
         }
-        
-        isLoading = false
-    }
-    
-    func assignChore(_ chore: Chore, to userId: String) async {
-        isLoading = true
-        errorMessage = nil
-        
-        do {
-            let request = UpdateChoreAssignmentRequest(assignedUserId: userId)
-            
-            let response: [Chore] = try await supabase
-                .from("chores")
-                .update(request)
-                .eq("id", value: chore.id)
-                .execute()
-                .value
-            
-            if let updatedChore = response.first {
-                if let index = chores.firstIndex(where: { $0.id == chore.id }) {
-                    chores[index] = updatedChore
-                }
-                
-                if let upcomingIndex = upcomingChores.firstIndex(where: { $0.id == chore.id }) {
-                    upcomingChores[upcomingIndex] = updatedChore
-                }
-            }
-        } catch {
-            errorMessage = error.localizedDescription
-        }
-        
         isLoading = false
     }
     
     func deleteChore(_ chore: Chore) async {
         isLoading = true
         errorMessage = nil
-        
         do {
             try await supabase
                 .from("chores")
                 .delete()
                 .eq("id", value: chore.id)
                 .execute()
-            
             chores.removeAll { $0.id == chore.id }
-            upcomingChores.removeAll { $0.id == chore.id }
+            // Always refetch after delete
+            await fetchChores(houseId: chore.houseId)
         } catch {
             errorMessage = error.localizedDescription
         }
-        
         isLoading = false
     }
 }
 
 extension Date {
-    func ISO8601String() -> String {
-        let formatter = ISO8601DateFormatter()
-        return formatter.string(from: self)
+    var iso8601String: String {
+        ISO8601DateFormatter().string(from: self)
     }
 }
  

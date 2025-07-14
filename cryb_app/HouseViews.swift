@@ -269,7 +269,7 @@ struct HouseSelectorView: View {
     var body: some View {
         NavigationView {
             VStack {
-                if let currentHouse = houseService.currentHouse {
+                if houseService.currentHouse != nil {
                     VStack(spacing: 20) {
                         Image(systemName: "house.fill")
                             .font(.system(size: 50))

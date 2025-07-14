@@ -75,53 +75,37 @@ struct JoinHouseRequest: Encodable {
 struct Chore: Codable, Identifiable {
     let id: String
     let title: String
-    let description: String?
-    let dueDate: Date?
-    let isCompleted: Bool
-    let assignedUserId: String?
+    let dueDate: String?
+    let completed: Bool
+    let assignedTo: String?
     let houseId: String
-    let createdBy: String
     let createdAt: Date
-    let recurrence: RecurrenceType?
-    let points: Int?
     
     enum CodingKeys: String, CodingKey {
         case id
         case title
-        case description
         case dueDate = "due_date"
-        case isCompleted = "is_completed"
-        case assignedUserId = "assigned_user_id"
+        case completed
+        case assignedTo = "assigned_to"
         case houseId = "house_id"
-        case createdBy = "created_by"
         case createdAt = "created_at"
-        case recurrence
-        case points
     }
 }
 
 // MARK: - Chore Request Models
 struct CreateChoreRequest: Encodable {
     let title: String
-    let description: String
-    let dueDate: String
-    let assignedUserId: String
+    let dueDate: String?
+    let assignedTo: String?
     let houseId: String
-    let createdBy: String
-    let recurrence: RecurrenceType
-    let points: Int
-    let isCompleted: Bool
+    let completed: Bool
     
     enum CodingKeys: String, CodingKey {
         case title
-        case description
         case dueDate = "due_date"
-        case assignedUserId = "assigned_user_id"
+        case assignedTo = "assigned_to"
         case houseId = "house_id"
-        case createdBy = "created_by"
-        case recurrence
-        case points
-        case isCompleted = "is_completed"
+        case completed
     }
 }
 
@@ -138,6 +122,20 @@ struct UpdateChoreAssignmentRequest: Encodable {
     
     enum CodingKeys: String, CodingKey {
         case assignedUserId = "assigned_user_id"
+    }
+}
+
+struct UpdateChoreRequest: Encodable {
+    let title: String
+    let dueDate: String?
+    let assignedTo: String?
+    let completed: Bool
+    
+    enum CodingKeys: String, CodingKey {
+        case title
+        case dueDate = "due_date"
+        case assignedTo = "assigned_to"
+        case completed
     }
 }
 
